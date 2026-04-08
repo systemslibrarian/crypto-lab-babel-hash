@@ -7,6 +7,7 @@
  * - BLAKE3: https://github.com/BLAKE3-team/BLAKE3-specs
  */
 import { blake3 } from '@noble/hashes/blake3.js';
+import { sha3_256 } from '@noble/hashes/sha3.js';
 
 export type HashAlgorithm = 'sha-256' | 'sha3-256' | 'blake3';
 
@@ -116,7 +117,11 @@ export async function hashBytes(input: Uint8Array, algorithm: HashAlgorithm): Pr
       digestBytes = await subtleDigest(input, ['SHA-256']);
       break;
     case 'sha3-256':
-      digestBytes = await subtleDigest(input, ['SHA3-256', 'SHA-3-256']);
+      try {
+        digestBytes = await subtleDigest(input, ['SHA3-256', 'SHA-3-256']);
+      } catch {
+        digestBytes = sha3_256(input);
+      }
       break;
     case 'blake3':
       digestBytes = blake3(input);
