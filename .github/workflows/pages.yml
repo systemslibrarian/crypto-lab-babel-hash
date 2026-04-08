@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: demos/babel-hash
-        run: npm ci
+        run: npm install
 
       - name: Type-check
         working-directory: demos/babel-hash
