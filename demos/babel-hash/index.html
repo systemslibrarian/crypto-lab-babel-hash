@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        const saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>babel-hash — SHA-256 · SHA3-256 · BLAKE3</title>
@@ -13,6 +19,9 @@
   <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="app" role="application" aria-label="babel-hash cryptographic hash demo"></div>
+    <footer class="scripture-footer">
+      <p>So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31</p>
+    </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

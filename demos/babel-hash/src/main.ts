@@ -140,9 +140,14 @@ function renderShell(): void {
     throw new Error('Missing #app mount node.');
   }
 
+  const currentTheme = document.documentElement.getAttribute('data-theme') ?? 'dark';
+  const toggleEmoji = currentTheme === 'dark' ? '☀️' : '🌙';
+  const toggleLabel = currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+
   app.innerHTML = `
     <div class="app-shell">
       <header class="hero">
+        <button class="theme-toggle" id="theme-toggle" aria-label="${toggleLabel}" title="${toggleLabel}">${toggleEmoji}</button>
         <div class="hero-badges">
           <span class="badge">Hash functions</span>
           <span class="badge">SHA-256 · SHA3-256 · BLAKE3</span>
@@ -626,6 +631,20 @@ function wireEvents(): void {
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) {
+      return;
+    }
+
+    if (target instanceof HTMLButtonElement && target.id === 'theme-toggle') {
+      const currentTheme = document.documentElement.getAttribute('data-theme') ?? 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      
+      const newEmoji = newTheme === 'dark' ? '☀️' : '🌙';
+      const newLabel = newTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      target.textContent = newEmoji;
+      target.setAttribute('aria-label', newLabel);
+      target.setAttribute('title', newLabel);
       return;
     }
 
