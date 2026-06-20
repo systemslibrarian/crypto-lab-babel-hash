@@ -18,6 +18,18 @@
   --muted: #b4c8db;
   --shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
   --focus-ring: 0 0 0 2px var(--accent);
+  --input-bg: #081220;
+  --input-text: #ffffff;
+  --tab-bg: #0b1420;
+  --tab-text: #d8e7f5;
+  --tab-active-text: #ffffff;
+  --badge-text: #d6f2ff;
+  --mark-text: #ffffff;
+  --button-bg: #0f1b2a;
+  --button-text: #ffffff;
+  --panel-bg: linear-gradient(180deg, rgba(17, 28, 42, 0.95), rgba(11, 18, 29, 0.98));
+  --digest-bg: rgba(0, 0, 0, 0.22);
+  --soft-surface: rgba(255, 255, 255, 0.03);
 }
 
 [data-theme="light"] {
@@ -37,6 +49,18 @@
   --muted: #666666;
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   --focus-ring: 0 0 0 2px var(--accent);
+  --input-bg: #ffffff;
+  --input-text: #1a1a1a;
+  --tab-bg: #ffffff;
+  --tab-text: #1a1a1a;
+  --tab-active-text: #084a85;
+  --badge-text: #084a85;
+  --mark-text: #1a1a1a;
+  --button-bg: #eef2f7;
+  --button-text: #1a1a1a;
+  --panel-bg: #ffffff;
+  --digest-bg: #eef2f7;
+  --soft-surface: #f3f6fa;
 }
 
 * {
@@ -97,8 +121,8 @@ textarea:focus-visible {
 }
 
 mark {
-  background: rgba(255, 184, 77, 0.45);
-  color: #fff;
+  background: var(--amber-soft);
+  color: var(--mark-text);
   border-radius: 0.3rem;
   padding: 0 0.2rem;
 }
@@ -144,7 +168,7 @@ textarea {
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: #d6f2ff;
+  color: var(--badge-text);
   border: 1px solid rgba(93, 196, 255, 0.25);
 }
 
@@ -180,8 +204,8 @@ textarea {
 
 .tab-button {
   border: 1px solid var(--border);
-  background: #0b1420;
-  color: #d8e7f5;
+  background: var(--tab-bg);
+  color: var(--tab-text);
   border-radius: 0.8rem;
   padding: 0.65rem 0.9rem;
   cursor: pointer;
@@ -194,7 +218,7 @@ textarea {
 .tab-button.active {
   background: var(--accent-soft);
   border-color: rgba(110, 207, 255, 0.5);
-  color: white;
+  color: var(--tab-active-text);
   font-weight: 600;
 }
 
@@ -208,7 +232,7 @@ textarea {
 
 .panel,
 .card {
-  background: linear-gradient(180deg, rgba(17, 28, 42, 0.95), rgba(11, 18, 29, 0.98));
+  background: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 1rem;
   padding: 1rem;
@@ -238,8 +262,8 @@ input[type='text'] {
   width: 100%;
   border-radius: 0.75rem;
   border: 1px solid var(--border);
-  background: #081220;
-  color: white;
+  background: var(--input-bg);
+  color: var(--input-text);
   padding: 0.75rem;
 }
 
@@ -262,7 +286,7 @@ input[type='range'] {
 .stat-chip {
   padding: 0.5rem 0.7rem;
   border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--soft-surface);
   border: 1px solid var(--border);
 }
 
@@ -270,9 +294,80 @@ input[type='range'] {
   word-break: break-all;
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 0.92rem;
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--digest-bg);
   border-radius: 0.75rem;
   padding: 0.75rem;
+}
+
+.copyable {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.copyable .copyable-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.copy-btn {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  min-height: 32px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.copy-btn:hover {
+  background: var(--panel-strong);
+}
+
+.copy-btn.copied {
+  background: var(--green);
+  border-color: var(--green);
+  color: #04130b;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: inline-block;
+}
+
+.swatch-0 { background: #314255; }
+.swatch-1 { background: #87d5ff; }
+.swatch-changed { background: var(--amber); }
+
+.steps {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.35rem;
 }
 
 .bit-grid {
@@ -364,7 +459,7 @@ input[type='range'] {
 .portfolio-item {
   padding: 0.75rem;
   border-radius: 0.8rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--soft-surface);
   border: 1px solid var(--border);
 }
 
@@ -382,8 +477,8 @@ input[type='range'] {
 .button-row button {
   border-radius: 0.7rem;
   border: 1px solid var(--border);
-  background: #0f1b2a;
-  color: white;
+  background: var(--button-bg);
+  color: var(--button-text);
   cursor: pointer;
   padding: 0.65rem 0.9rem;
   min-height: 44px;
@@ -395,6 +490,7 @@ input[type='range'] {
 .button-row button.primary {
   background: linear-gradient(180deg, #1892d5, #0f6d9f);
   border-color: rgba(110, 207, 255, 0.5);
+  color: #ffffff;
 }
 
 code,

@@ -31,6 +31,14 @@ const ALGORITHM_LABELS: Record<HashAlgorithm, string> = {
   blake3: 'BLAKE3'
 };
 
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: 'avalanche', label: '1. Avalanche' },
+  { id: 'length', label: '2. Length extension' },
+  { id: 'hmac', label: '3. HMAC saves the day' },
+  { id: 'comparison', label: '4. Algorithm comparison' },
+  { id: 'portfolio', label: '5. Portfolio thread' }
+];
+
 const HIDDEN_SECRET = 'kingdom42';
 
 const state = {
@@ -62,6 +70,35 @@ const state = {
 
 let avalancheRenderToken = 0;
 let hmacRenderToken = 0;
+let announceTimer = 0;
+
+/**
+ * Route screen-reader updates through one persistent live region instead of
+ * sprinkling aria-live on nodes that re-render on every keystroke. Input-driven
+ * updates are debounced so only the settled value is announced; discrete actions
+ * (like clicking a bit) can announce immediately.
+ */
+function announce(message: string, immediate = false): void {
+  const region = document.getElementById('sr-announcer');
+  if (!region) {
+    return;
+  }
+
+  window.clearTimeout(announceTimer);
+  const apply = (): void => {
+    // Clear first so repeating the same text is still re-announced.
+    region.textContent = '';
+    window.setTimeout(() => {
+      region.textContent = message;
+    }, 30);
+  };
+
+  if (immediate) {
+    apply();
+  } else {
+    announceTimer = window.setTimeout(apply, 450);
+  }
+}
 
 function escapeHtml(input: string): string {
   return input
@@ -83,6 +120,27 @@ function byteAndBitLabel(bitPosition: number): string {
   return `byte ${Math.floor(bitPosition / 8)}, bit ${7 - (bitPosition % 8)}`;
 }
 
+/**
+ * A monospace block holding a hex digest/MAC with a one-click copy button.
+ * Only used for hex values, which are safe inside the data-copy attribute.
+ */
+function copyableHex(hex: string, label: string): string {
+  return `<div class="digest-block copyable">
+    <span class="copyable-value">${hex}</span>
+    <button type="button" class="copy-btn" data-copy="${hex}" aria-label="Copy ${escapeHtml(label)}" title="Copy ${escapeHtml(label)}">
+      <span aria-hidden="true">Copy</span>
+    </button>
+  </div>`;
+}
+
+const BIT_GRID_LEGEND = `
+  <div class="legend" aria-hidden="true">
+    <span class="legend-item"><span class="swatch swatch-0"></span> bit = 0</span>
+    <span class="legend-item"><span class="swatch swatch-1"></span> bit = 1</span>
+    <span class="legend-item"><span class="swatch swatch-changed"></span> flipped by the input change</span>
+  </div>
+`;
+
 function setActiveTab(tabId: TabId): void {
   state.activeTab = tabId;
   document.querySelectorAll<HTMLButtonElement>('[data-tab-target]').forEach((button) => {
@@ -96,6 +154,16 @@ function setActiveTab(tabId: TabId): void {
     panel.classList.toggle('active', active);
     panel.setAttribute('aria-hidden', String(!active));
   });
+
+  // Run the 1 MB benchmark lazily, the first time the comparison tab is opened,
+  // so it never janks initial page load.
+  if (
+    tabId === 'comparison' &&
+    !state.benchmark.running &&
+    Object.keys(state.benchmark.results).length === 0
+  ) {
+    void runBenchmark();
+  }
 }
 
 function buildBitGrid(
@@ -160,24 +228,41 @@ function renderShell(): void {
         </p>
       </header>
 
-      <nav class="tabs" aria-label="Demo tabs">
-        <button class="tab-button active" data-tab-target="avalanche">1. Avalanche</button>
-        <button class="tab-button" data-tab-target="length">2. Length extension</button>
-        <button class="tab-button" data-tab-target="hmac">3. HMAC saves the day</button>
-        <button class="tab-button" data-tab-target="comparison">4. Algorithm comparison</button>
-        <button class="tab-button" data-tab-target="portfolio">5. Portfolio thread</button>
+      <nav class="tabs" role="tablist" aria-label="Demo tabs">
+        ${TABS.map(
+          (tab, index) => `<button
+            type="button"
+            class="tab-button${index === 0 ? ' active' : ''}"
+            role="tab"
+            id="tab-${tab.id}"
+            data-tab-target="${tab.id}"
+            aria-controls="panel-${tab.id}"
+            aria-selected="${index === 0}"
+            tabindex="${index === 0 ? '0' : '-1'}"
+          >${tab.label}</button>`
+        ).join('')}
       </nav>
 
-      <section id="panel-avalanche" class="tab-panel active" data-tab-panel="avalanche"></section>
-      <section id="panel-length" class="tab-panel" data-tab-panel="length"></section>
-      <section id="panel-hmac" class="tab-panel" data-tab-panel="hmac"></section>
-      <section id="panel-comparison" class="tab-panel" data-tab-panel="comparison"></section>
-      <section id="panel-portfolio" class="tab-panel" data-tab-panel="portfolio"></section>
+      <div id="sr-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <main id="main-content" tabindex="-1">
+        ${TABS.map(
+          (tab, index) => `<section
+            id="panel-${tab.id}"
+            class="tab-panel${index === 0 ? ' active' : ''}"
+            role="tabpanel"
+            tabindex="0"
+            data-tab-panel="${tab.id}"
+            aria-labelledby="tab-${tab.id}"
+            aria-hidden="${index !== 0}"
+          ></section>`
+        ).join('')}
+      </main>
     </div>
   `;
 }
 
-async function renderAvalanchePanel(): Promise<void> {
+async function renderAvalanchePanel(announceMode: 'stats' | 'none' = 'stats'): Promise<void> {
   const panel = document.querySelector<HTMLElement>('#panel-avalanche');
   if (!panel) {
     return;
@@ -223,21 +308,20 @@ async function renderAvalanchePanel(): Promise<void> {
       return `
         <div class="card">
           <h3>${ALGORITHM_LABELS[algorithm]}</h3>
-          <div class="stat-row" role="status" aria-live="polite">
+          <div class="stat-row">
             <span class="stat-chip"><strong>${result.changedBits}</strong> / 256 bits changed</span>
             <span class="stat-chip"><strong>${result.changedPercent.toFixed(1)}%</strong> diffusion</span>
             <span class="stat-chip">Flip: <strong>${state.avalanche.bitPosition}</strong> (${byteAndBitLabel(state.avalanche.bitPosition)})</span>
-            <span class="sr-only">${result.changedBits} of 256 bits changed, ${result.changedPercent.toFixed(1)} percent diffusion</span>
           </div>
           <div class="grid-2">
             <div>
               <strong>Original digest</strong>
-              <div class="digest-block">${result.originalDigest}</div>
+              ${copyableHex(result.originalDigest, `${ALGORITHM_LABELS[algorithm]} original digest`)}
               ${buildBitGrid(originalBits, result.bitDiff, state.avalanche.bitPosition, algorithm, state.avalanche.flashDiff)}
             </div>
             <div>
               <strong>Modified digest</strong>
-              <div class="digest-block">${result.modifiedDigest}</div>
+              ${copyableHex(result.modifiedDigest, `${ALGORITHM_LABELS[algorithm]} modified digest`)}
               ${buildBitGrid(modifiedBits, result.bitDiff, state.avalanche.bitPosition, algorithm, state.avalanche.flashDiff)}
             </div>
           </div>
@@ -283,17 +367,18 @@ async function renderAvalanchePanel(): Promise<void> {
           <strong>Modified UTF-8 bytes</strong><br />
           <code>${formatHexWithHighlight(modifiedBytes, Math.floor(state.avalanche.bitPosition / 8))}</code>
         </div>
-        <div class="callout warn small" style="margin-top: 0.8rem;" role="status" aria-live="polite">
+        <div class="callout warn small" style="margin-top: 0.8rem;">
           ${escapeHtml(state.avalanche.selectedBitNote)}
         </div>
       </div>
       <div class="panel">
         <h2>What to watch for</h2>
+        ${BIT_GRID_LEGEND}
         <ul>
-          <li>Each output grid contains all <strong>256 digest bits</strong>.</li>
-          <li>Amber cells changed after the selected input bit flip.</li>
+          <li>Each output grid contains all <strong>256 digest bits</strong>, read left to right, top to bottom.</li>
+          <li>Amber cells are the bits that changed after the selected input bit flip.</li>
           <li>Hover any bit for its position; click a changed bit for a short explanation.</li>
-          <li>SHA-256, SHA3-256, and BLAKE3 should all land close to <strong>50%</strong>.</li>
+          <li>SHA-256, SHA3-256, and BLAKE3 should all land close to <strong>50%</strong> — that is the avalanche effect.</li>
         </ul>
       </div>
     </div>
@@ -302,6 +387,16 @@ async function renderAvalanchePanel(): Promise<void> {
       ${view}
     </div>
   `;
+
+  if (announceMode === 'stats') {
+    const summary =
+      results.length === 1
+        ? `${ALGORITHM_LABELS[results[0].algorithm]}: ${results[0].result.changedBits} of 256 bits changed, ${results[0].result.changedPercent.toFixed(1)} percent diffusion after flipping input bit ${state.avalanche.bitPosition}.`
+        : `After flipping input bit ${state.avalanche.bitPosition}: ${results
+            .map(({ algorithm, result }) => `${ALGORITHM_LABELS[algorithm]} ${result.changedPercent.toFixed(1)} percent`)
+            .join(', ')} diffusion.`;
+    announce(summary);
+  }
 
   window.setTimeout(() => {
     state.avalanche.flashDiff = false;
@@ -333,8 +428,15 @@ function renderLengthExtensionPanel(): void {
       <div class="panel">
         <h2>Length extension attack against bare <code>SHA-256(secret ∥ message)</code></h2>
         <p class="muted">
-          The attacker sees the message and the MAC, guesses the secret length, then resumes SHA-256 from the exposed internal state.
+          A server authenticates messages with <code>MAC = SHA-256(secret ∥ message)</code>. The attacker never learns the
+          secret, yet can still append data and produce a valid MAC. Move the slider to the real secret length to watch the forgery land.
         </p>
+        <ol class="steps muted">
+          <li>Capture a legitimate <code>(message, MAC)</code> pair.</li>
+          <li>Guess the secret length to reconstruct SHA-256's internal padding.</li>
+          <li>Load the captured MAC back into SHA-256 as its chaining state.</li>
+          <li>Hash the chosen extension on top and emit the new MAC — no secret required.</li>
+        </ol>
 
         <label for="attack-message">
           Known message
@@ -374,9 +476,9 @@ function renderLengthExtensionPanel(): void {
             </ul>
           </div>
         </div>
-        <div class="callout warn" style="margin-top: 1rem;" role="status" aria-live="polite">
+        <div class="callout warn" style="margin-top: 1rem;">
           <strong>Server verdict:</strong>
-          <span class="${attack.verified ? 'success' : 'failure'}" role="alert">
+          <span class="${attack.verified ? 'success' : 'failure'}">
             ${attack.verified ? 'forgery accepted — attack succeeds' : 'forgery rejected — wrong secret-length guess'}
           </span>
         </div>
@@ -394,7 +496,7 @@ function renderLengthExtensionPanel(): void {
       <div class="card">
         <h3>Step 5–6: Continue hashing from the exposed state</h3>
         <p><strong>Forged MAC</strong></p>
-        <pre class="digest-block">${attack.forgeryMAC}</pre>
+        ${copyableHex(attack.forgeryMAC, 'forged MAC')}
         <p class="small muted">Because SHA-256 is Merkle–Damgård, the final digest leaks the full 256-bit chaining state.</p>
       </div>
     </div>
@@ -409,6 +511,10 @@ function renderLengthExtensionPanel(): void {
       <p class="muted small">SHA3-256 and BLAKE3 do not expose a resumable Merkle–Damgård state in the same way, so this attack does not carry over.</p>
     </div>
   `;
+
+  announce(
+    `Length extension server verdict: ${attack.verified ? 'forgery accepted, the attack succeeds' : 'forgery rejected, wrong secret-length guess'}.`
+  );
 }
 
 async function renderHmacPanel(): Promise<void> {
@@ -449,10 +555,8 @@ async function renderHmacPanel(): Promise<void> {
           Guessed secret length: <strong>${state.hmac.secretGuess}</strong> bytes
         </label>
         <input id="hmac-secret-length" type="range" min="1" max="32" value="${state.hmac.secretGuess}" aria-label="Guessed secret length" aria-valuemin="1" aria-valuemax="32" aria-valuenow="${state.hmac.secretGuess}" />
-        <div class="stat-row" aria-label="HMAC result">
-          <span class="stat-chip">HMAC(secret, message)</span>
-          <span class="stat-chip"><code>${mac}</code></span>
-        </div>
+        <p style="margin-bottom: 0.4rem;"><strong>HMAC(secret, message)</strong></p>
+        ${copyableHex(mac, 'HMAC tag')}
       </div>
 
       <div class="panel">
@@ -463,9 +567,9 @@ async function renderHmacPanel(): Promise<void> {
           <li>The outer hash hides the internal state from the attacker.</li>
           <li>Resuming from the visible tag does not produce a valid MAC.</li>
         </ul>
-        <div class="callout warn" role="status" aria-live="polite">
+        <div class="callout warn">
           <strong>Server verdict:</strong>
-          <span class="${serverAccepted ? 'success' : 'failure'}" role="alert">
+          <span class="${serverAccepted ? 'success' : 'failure'}">
             ${serverAccepted ? 'unexpectedly accepted' : 'forgery rejected — HMAC is not length-extendable'}
           </span>
         </div>
@@ -475,7 +579,8 @@ async function renderHmacPanel(): Promise<void> {
     <div class="grid-2" style="margin-top: 1rem;">
       <div class="card">
         <h3>Attacker’s fake continuation</h3>
-        <pre class="digest-block">${attempt.forgery}</pre>
+        ${copyableHex(attempt.forgery, 'attacker forgery attempt')}
+        <p class="small muted">The same length-extension math runs against the HMAC tag — and the server still rejects it.</p>
       </div>
       <div class="card">
         <h3>When to use HMAC</h3>
@@ -487,6 +592,10 @@ async function renderHmacPanel(): Promise<void> {
       </div>
     </div>
   `;
+
+  announce(
+    `HMAC server verdict: ${serverAccepted ? 'unexpectedly accepted' : 'forgery rejected, HMAC is not length-extendable'}.`
+  );
 }
 
 function renderComparisonPanel(): void {
@@ -539,6 +648,13 @@ function renderComparisonPanel(): void {
     <div class="panel" style="margin-top: 1rem;">
       <h2>Live 1 MB benchmark</h2>
       <p class="muted">${state.benchmark.status}</p>
+      <div class="callout warn small">
+        <strong>Read this before trusting the numbers:</strong> SHA-256 runs in the browser's
+        <strong>native</strong> WebCrypto engine, while BLAKE3 (and SHA3-256 where WebCrypto lacks it)
+        run as portable <strong>JavaScript</strong> via <code>@noble/hashes</code>. So this measures
+        implementation paths, not the algorithms themselves — a native BLAKE3 build is typically the
+        fastest of the three.
+      </div>
       <div class="button-row">
         <button type="button" id="run-benchmark" class="primary" ${state.benchmark.running ? 'disabled aria-disabled="true"' : ''} aria-label="Run 1 MB hash benchmark">
           ${state.benchmark.running ? 'Benchmark running…' : 'Run benchmark'}
@@ -618,6 +734,34 @@ async function runBenchmark(): Promise<void> {
   renderComparisonPanel();
 }
 
+async function copyToClipboard(text: string, button: HTMLButtonElement): Promise<void> {
+  const label = button.querySelector('span');
+  const restore = label?.textContent ?? 'Copy';
+
+  try {
+    if (globalThis.navigator?.clipboard?.writeText) {
+      await globalThis.navigator.clipboard.writeText(text);
+    } else {
+      throw new Error('Clipboard API unavailable');
+    }
+    button.classList.add('copied');
+    if (label) {
+      label.textContent = 'Copied!';
+    }
+  } catch {
+    if (label) {
+      label.textContent = 'Press Ctrl+C';
+    }
+  }
+
+  window.setTimeout(() => {
+    button.classList.remove('copied');
+    if (label) {
+      label.textContent = restore;
+    }
+  }, 1400);
+}
+
 function getRandomBytes(length: number): Uint8Array {
   const buffer = new Uint8Array(length);
   const chunkSize = 65_536;
@@ -631,6 +775,12 @@ function wireEvents(): void {
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) {
+      return;
+    }
+
+    const copyBtn = target.closest<HTMLButtonElement>('.copy-btn');
+    if (copyBtn?.dataset.copy) {
+      void copyToClipboard(copyBtn.dataset.copy, copyBtn);
       return;
     }
 
@@ -674,7 +824,8 @@ function wireEvents(): void {
       state.avalanche.selectedBitNote = changed
         ? `${algorithm.toUpperCase()} output bit ${outputBit} flipped because changing input bit ${inputBit} diffused through many rounds of mixing.`
         : `${algorithm.toUpperCase()} output bit ${outputBit} stayed the same for this particular input flip, while many neighboring bits changed.`;
-      void renderAvalanchePanel();
+      void renderAvalanchePanel('none');
+      announce(state.avalanche.selectedBitNote, true);
     }
   });
 
@@ -773,7 +924,6 @@ async function boot(): Promise<void> {
   renderComparisonPanel();
   renderPortfolioPanel();
   await Promise.allSettled([renderAvalanchePanel(), renderHmacPanel()]);
-  void runBenchmark();
 }
 
 void boot();

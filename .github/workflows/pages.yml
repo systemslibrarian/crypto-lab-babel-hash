@@ -30,6 +30,10 @@ jobs:
         working-directory: demos/babel-hash
         run: npm install
 
+      - name: Lint
+        working-directory: demos/babel-hash
+        run: npm run lint
+
       - name: Type-check
         working-directory: demos/babel-hash
         run: npx tsc --noEmit
