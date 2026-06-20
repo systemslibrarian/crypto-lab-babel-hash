@@ -63,6 +63,7 @@ const state = {
   },
   benchmark: {
     running: false,
+    completed: false,
     status: 'Ready to benchmark 1 MB of random data in-browser.',
     results: {} as Partial<Record<HashAlgorithm, BenchmarkResult>>
   }
@@ -157,11 +158,7 @@ function setActiveTab(tabId: TabId): void {
 
   // Run the 1 MB benchmark lazily, the first time the comparison tab is opened,
   // so it never janks initial page load.
-  if (
-    tabId === 'comparison' &&
-    !state.benchmark.running &&
-    Object.keys(state.benchmark.results).length === 0
-  ) {
+  if (tabId === 'comparison' && !state.benchmark.running && !state.benchmark.completed) {
     void runBenchmark();
   }
 }
@@ -708,6 +705,7 @@ async function runBenchmark(): Promise<void> {
   renderComparisonPanel();
 
   const data = getRandomBytes(1024 * 1024);
+  const megabytes = data.length / (1024 * 1024);
 
   for (const algorithm of ALGORITHMS) {
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
@@ -718,7 +716,7 @@ async function runBenchmark(): Promise<void> {
       const timeMs = performance.now() - start;
       state.benchmark.results[algorithm] = {
         timeMs,
-        mbps: 1 / (timeMs / 1000),
+        mbps: megabytes / (timeMs / 1000),
         digest
       };
       state.benchmark.status = `${ALGORITHM_LABELS[algorithm]} finished in ${timeMs.toFixed(2)} ms.`;
@@ -730,6 +728,7 @@ async function runBenchmark(): Promise<void> {
   }
 
   state.benchmark.running = false;
+  state.benchmark.completed = true;
   state.benchmark.status = 'Benchmark complete. Exact rankings depend on the browser and implementation path.';
   renderComparisonPanel();
 }
