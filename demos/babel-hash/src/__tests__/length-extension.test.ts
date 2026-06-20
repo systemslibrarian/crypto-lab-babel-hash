@@ -16,6 +16,13 @@ describe('length extension attack', () => {
     expect(Array.from(padding.slice(-8))).toEqual([0, 0, 0, 0, 0, 0, 0, 24]);
   });
 
+  it('emits a full extra padding block when the message ends on a 64-byte boundary', () => {
+    // 64 - 1 (0x80) - 8 (length) = 55 bytes hash in one block; 56 forces a second block.
+    const padding = computeSHA256Padding(56);
+    expect(padding.length).toBe(64 + 8);
+    expect(padding[0]).toBe(0x80);
+  });
+
   it('forges a valid SHA-256 MAC when the secret-length guess is correct', () => {
     const secret = 'hiddenkey';
     const message = 'comment=10&uid=1';
@@ -25,6 +32,17 @@ describe('length extension attack', () => {
 
     expect(verifyLengthExtension(secret, attack)).toBe(true);
     expect(attack.forgeryMAC).toHaveLength(64);
+  });
+
+  it('produces a forgery the server rejects when the secret-length guess is wrong', () => {
+    const secret = 'hiddenkey';
+    const message = 'comment=10&uid=1';
+    const extension = '&admin=true';
+    const originalMAC = sha256PrefixMac(secret, message);
+    const wrongGuess = secret.length + 3;
+    const attack = lengthExtensionForge(originalMAC, message, wrongGuess, extension);
+
+    expect(verifyLengthExtension(secret, attack)).toBe(false);
   });
 
   it('does not transfer to SHA3-256', async () => {

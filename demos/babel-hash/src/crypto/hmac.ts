@@ -47,8 +47,6 @@ export async function attemptLengthExtensionOnHMAC(
   extension: string
 ): Promise<{ forgery: string; verified: boolean }> {
   const attack = lengthExtensionForge(mac, message, secretLength, extension);
-  void secretLength;
-  void extension;
 
   return {
     forgery: attack.forgeryMAC,
