@@ -3,3 +3,8 @@ dist/
 coverage/
 .vite/
 screenshots/
+
+# Playwright artifacts
+test-results/
+playwright-report/
+.pw-browsers/
