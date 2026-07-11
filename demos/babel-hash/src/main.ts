@@ -1,12 +1,19 @@
 import './styles.css';
 
-import { computeAvalanche, flipBitBytes } from './crypto/avalanche';
+import {
+  computeAvalanche,
+  computeAvalancheDistribution,
+  flipBitBytes,
+  type AvalancheDistribution
+} from './crypto/avalanche';
 import { attemptLengthExtensionOnHMAC, hmacSign, hmacVerify } from './crypto/hmac';
 import {
   buildForgedMessageBytes,
   lengthExtensionForge,
   sha256PrefixMac,
-  verifyLengthExtension
+  sweepSecretLengths,
+  verifyLengthExtension,
+  type SecretLengthSweepEntry
 } from './crypto/length-extension';
 import {
   bytesToHex,
@@ -39,27 +46,34 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'portfolio', label: '5. Portfolio thread' }
 ];
 
-const HIDDEN_SECRET = 'kingdom42';
+const DEFAULT_SECRET = 'kingdom42';
 
 const state = {
   activeTab: 'avalanche' as TabId,
+  // Shared across the length-extension and HMAC tabs so a visitor can watch the
+  // forgery track *their* secret, not a value hardcoded into the demo.
+  secret: DEFAULT_SECRET,
   avalanche: {
     input: 'Hash functions are the silent foundation under modern cryptography.',
     algorithm: 'sha-256' as HashAlgorithm,
     bitPosition: 0,
     compareAll: false,
     flashDiff: false,
-    selectedBitNote: 'Click any highlighted bit to inspect the diffusion path.'
+    selectedBitNote: 'Click any highlighted bit to inspect the diffusion path.',
+    distribution: null as AvalancheDistribution | null,
+    distributionRunning: false,
+    distributionStatus: 'Run one flip per input bit to see the whole avalanche distribution.'
   },
   attack: {
     message: 'comment=hello&admin=false',
     extension: '&admin=true',
-    secretGuess: HIDDEN_SECRET.length
+    secretGuess: DEFAULT_SECRET.length,
+    sweep: null as SecretLengthSweepEntry[] | null
   },
   hmac: {
     message: 'comment=hello&admin=false',
     extension: '&admin=true',
-    secretGuess: HIDDEN_SECRET.length
+    secretGuess: DEFAULT_SECRET.length
   },
   benchmark: {
     running: false,
@@ -161,6 +175,8 @@ function setActiveTab(tabId: TabId): void {
   if (tabId === 'comparison' && !state.benchmark.running && !state.benchmark.completed) {
     void runBenchmark();
   }
+
+  writeStateToHash();
 }
 
 function buildBitGrid(
@@ -195,6 +211,51 @@ function buildBitGrid(
           ></button>`;
         })
         .join('')}
+    </div>
+  `;
+}
+
+function buildDistributionView(distribution: AvalancheDistribution): string {
+  const ideal = distribution.totalBits / 2;
+  const peak = Math.max(1, ...distribution.histogram);
+  const idealBucket = Math.floor(ideal / distribution.bucketSize);
+
+  const bars = distribution.histogram
+    .map((count, index) => {
+      const lo = index * distribution.bucketSize;
+      const hi = Math.min(lo + distribution.bucketSize - 1, distribution.totalBits);
+      const heightPct = (count / peak) * 100;
+      const rangeLabel = lo === hi ? `${lo}` : `${lo}–${hi}`;
+      const classes = ['dist-bar'];
+      if (index === idealBucket) {
+        classes.push('ideal');
+      }
+      return `<div
+        class="${classes.join(' ')}"
+        style="--bar-height: ${heightPct.toFixed(1)}%"
+        title="${count} flip${count === 1 ? '' : 's'} changed ${rangeLabel} of ${distribution.totalBits} output bits"
+      ><span class="dist-bar-fill"></span></div>`;
+    })
+    .join('');
+
+  return `
+    <div class="panel" style="margin-top: 1rem;">
+      <h3>Avalanche distribution over all ${distribution.trials} input bits</h3>
+      <p class="muted small">
+        Each bar counts how many single-bit input flips changed a given number of output bits.
+        A single reading of, say, 47% is just one draw from this curve — which piles up tightly
+        around <strong>${ideal}</strong> bits (half of ${distribution.totalBits}).
+      </p>
+      <div class="stat-row">
+        <span class="stat-chip">Mean: <strong>${distribution.mean.toFixed(1)}</strong> bits (${((distribution.mean / distribution.totalBits) * 100).toFixed(1)}%)</span>
+        <span class="stat-chip">Std dev: <strong>${distribution.stdDev.toFixed(1)}</strong></span>
+        <span class="stat-chip">Range: <strong>${distribution.min}–${distribution.max}</strong></span>
+        <span class="stat-chip">Ideal: <strong>${ideal}</strong></span>
+      </div>
+      <div class="dist-chart" aria-hidden="true">
+        ${bars}
+      </div>
+      <p class="muted small">The highlighted bar straddles the ideal of ${ideal} changed bits.</p>
     </div>
   `;
 }
@@ -355,7 +416,11 @@ async function renderAvalanchePanel(announceMode: 'stats' | 'none' = 'stats'): P
           <button type="button" class="primary" id="toggle-compare-all" aria-pressed="${state.avalanche.compareAll}">
             ${state.avalanche.compareAll ? 'Show one algorithm' : 'Compare all three side by side'}
           </button>
+          <button type="button" id="run-distribution" ${state.avalanche.distributionRunning ? 'disabled aria-disabled="true"' : ''} aria-label="Flip every input bit once and chart the distribution">
+            ${state.avalanche.distributionRunning ? 'Measuring…' : 'Run one flip per input bit'}
+          </button>
         </div>
+        <p class="muted small" style="margin-top: 0.4rem;">${escapeHtml(state.avalanche.distributionStatus)}</p>
         <div class="callout small">
           <strong>Original input</strong><br />
           <code>${escapeHtml(state.avalanche.input)}</code><br /><br />
@@ -383,6 +448,8 @@ async function renderAvalanchePanel(announceMode: 'stats' | 'none' = 'stats'): P
     <div class="grid-2" style="margin-top: 1rem;">
       ${view}
     </div>
+
+    ${state.avalanche.distribution ? buildDistributionView(state.avalanche.distribution) : ''}
   `;
 
   if (announceMode === 'stats') {
@@ -406,19 +473,54 @@ function renderLengthExtensionPanel(): void {
     return;
   }
 
-  const bareMac = sha256PrefixMac(HIDDEN_SECRET, state.attack.message);
+  const secret = state.secret;
+  const bareMac = sha256PrefixMac(secret, state.attack.message);
   const attack = lengthExtensionForge(
     bareMac,
     state.attack.message,
     state.attack.secretGuess,
     state.attack.extension
   );
-  attack.verified = verifyLengthExtension(HIDDEN_SECRET, attack);
+  attack.verified = verifyLengthExtension(secret, attack);
   const forgedMessageBytes = buildForgedMessageBytes(
     state.attack.message,
     state.attack.secretGuess,
     state.attack.extension
   );
+
+  const sweep = state.attack.sweep;
+  const sweepHit = sweep?.find((entry) => entry.verified) ?? null;
+  const sweepView = sweep
+    ? `
+      <div class="panel" style="margin-top: 1rem;">
+        <h3>Sweep every secret length</h3>
+        <p class="muted small">
+          The attacker never learns the length — they just try all of them. Each chip is a guess;
+          the amber one is the length whose forgery the server accepts. Click any chip to load that guess above.
+          ${
+            sweepHit
+              ? `The server accepted the guess <strong>${sweepHit.guess}</strong> — matching the real secret length of ${secret.length}.`
+              : `No guess in 1–32 landed, because this secret is ${secret.length} bytes long (outside the swept range).`
+          }
+        </p>
+        <div class="sweep-grid" role="group" aria-label="Secret-length sweep results — select a guess to load it">
+          ${sweep
+            .map(
+              (entry) =>
+                `<button
+                  type="button"
+                  class="sweep-chip${entry.verified ? ' verified' : ''}${entry.guess === state.attack.secretGuess ? ' current' : ''}"
+                  data-sweep-guess="${entry.guess}"
+                  aria-pressed="${entry.guess === state.attack.secretGuess}"
+                  aria-label="Secret length ${entry.guess} bytes — forgery ${entry.verified ? 'accepted' : 'rejected'}"
+                  title="Guess ${entry.guess} byte secret — ${entry.verified ? 'forgery accepted' : 'rejected'}"
+                >${entry.guess}${entry.verified ? ' ✓' : ''}</button>`
+            )
+            .join('')}
+        </div>
+      </div>
+    `
+    : '';
 
   panel.innerHTML = `
     <div class="grid-2">
@@ -435,6 +537,10 @@ function renderLengthExtensionPanel(): void {
           <li>Hash the chosen extension on top and emit the new MAC — no secret required.</li>
         </ol>
 
+        <label for="attack-secret">
+          Server secret <span class="muted small">(you set it; the attacker never sees it)</span>
+        </label>
+        <input id="attack-secret" type="text" value="${escapeHtml(secret)}" maxlength="32" aria-label="Server secret" autocomplete="off" spellcheck="false" />
         <label for="attack-message">
           Known message
         </label>
@@ -447,6 +553,11 @@ function renderLengthExtensionPanel(): void {
           Guess secret length: <strong>${state.attack.secretGuess}</strong> bytes
         </label>
         <input id="attack-secret-length" type="range" min="1" max="32" value="${state.attack.secretGuess}" aria-label="Guess secret length" aria-valuemin="1" aria-valuemax="32" aria-valuenow="${state.attack.secretGuess}" />
+        <div class="button-row">
+          <button type="button" class="primary" id="sweep-secret-lengths" aria-label="Try every secret length from 1 to 32">
+            Sweep lengths 1–32
+          </button>
+        </div>
 
         <div class="stat-row" aria-label="Server MAC and padding summary">
           <span class="stat-chip">Server MAC: <code>${bareMac}</code></span>
@@ -468,8 +579,8 @@ function renderLengthExtensionPanel(): void {
           <div class="card">
             <strong>Not known to attacker</strong>
             <ul>
-              <li><code>secret = ${'•'.repeat(HIDDEN_SECRET.length)}</code></li>
-              <li>real secret length = ${HIDDEN_SECRET.length}</li>
+              <li><code>secret = ${'•'.repeat(Math.max(secret.length, 1))}</code></li>
+              <li>real secret length = ${secret.length}</li>
             </ul>
           </div>
         </div>
@@ -507,6 +618,7 @@ function renderLengthExtensionPanel(): void {
       </div>
       <p class="muted small">SHA3-256 and BLAKE3 do not expose a resumable Merkle–Damgård state in the same way, so this attack does not carry over.</p>
     </div>
+    ${sweepView}
   `;
 
   announce(
@@ -523,14 +635,15 @@ async function renderHmacPanel(): Promise<void> {
   const renderToken = ++hmacRenderToken;
   panel.innerHTML = '<div class="panel">Computing HMAC view…</div>';
 
-  const mac = await hmacSign(HIDDEN_SECRET, state.hmac.message);
+  const secret = state.secret;
+  const mac = await hmacSign(secret, state.hmac.message);
   const attempt = await attemptLengthExtensionOnHMAC(
     mac,
     state.hmac.message,
     state.hmac.secretGuess,
     state.hmac.extension
   );
-  const serverAccepted = await hmacVerify(HIDDEN_SECRET, `${state.hmac.message}${state.hmac.extension}`, attempt.forgery);
+  const serverAccepted = await hmacVerify(secret, `${state.hmac.message}${state.hmac.extension}`, attempt.forgery);
 
   if (renderToken !== hmacRenderToken) {
     return;
@@ -588,6 +701,13 @@ async function renderHmacPanel(): Promise<void> {
         </ul>
       </div>
     </div>
+
+    <div class="callout warn small" style="margin-top: 1rem;">
+      <strong>One more rule:</strong> compare MAC tags in <strong>constant time</strong>. A verifier that
+      bails on the first mismatched byte leaks, through its timing, how much of a guessed tag was
+      correct — enough to forge one byte at a time. This demo uses <code>SubtleCrypto.verify</code>,
+      which performs the equality check in constant time for you.
+    </div>
   `;
 
   announce(
@@ -643,6 +763,16 @@ function renderComparisonPanel(): void {
     </div>
 
     <div class="panel" style="margin-top: 1rem;">
+      <h2>What a hash is <em>not</em></h2>
+      <p class="muted">These three functions are excellent at one job — a fixed-size fingerprint — and wrong for several others.</p>
+      <div class="grid-3">
+        <div class="card"><strong>Not encryption</strong><br /><span class="muted">A digest is one-way. There is no key and nothing to decrypt — you cannot recover the input from it.</span></div>
+        <div class="card"><strong>Not a MAC on its own</strong><br /><span class="muted">Bare <code>hash(secret ∥ msg)</code> is forgeable (tab 2). Authentication needs HMAC or another keyed construction.</span></div>
+        <div class="card"><strong>Not a password store</strong><br /><span class="muted">Fast hashes are a liability for passwords. Use a slow KDF — bcrypt, scrypt, or Argon2id — instead.</span></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1rem;">
       <h2>Live 1 MB benchmark</h2>
       <p class="muted">${state.benchmark.status}</p>
       <div class="callout warn small">
@@ -695,13 +825,22 @@ function renderPortfolioPanel(): void {
   `;
 }
 
+const BENCHMARK_WARMUP_RUNS = 1;
+const BENCHMARK_TIMED_RUNS = 5;
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
 async function runBenchmark(): Promise<void> {
   if (state.benchmark.running) {
     return;
   }
 
   state.benchmark.running = true;
-  state.benchmark.status = 'Benchmark running… the UI stays responsive while each digest finishes.';
+  state.benchmark.status = `Benchmark running… ${BENCHMARK_WARMUP_RUNS} warmup + ${BENCHMARK_TIMED_RUNS} timed passes per algorithm.`;
   renderComparisonPanel();
 
   const data = getRandomBytes(1024 * 1024);
@@ -711,15 +850,28 @@ async function runBenchmark(): Promise<void> {
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
 
     try {
-      const start = performance.now();
-      const digest = await hashBytes(data, algorithm);
-      const timeMs = performance.now() - start;
+      // Discard warmup passes so JIT compilation and first-call overhead do not
+      // land in the reported time, then report the median of the timed runs to
+      // shrug off the occasional GC pause or scheduler hiccup.
+      for (let run = 0; run < BENCHMARK_WARMUP_RUNS; run += 1) {
+        await hashBytes(data, algorithm);
+      }
+
+      const samples: number[] = [];
+      let digest = '';
+      for (let run = 0; run < BENCHMARK_TIMED_RUNS; run += 1) {
+        const start = performance.now();
+        digest = await hashBytes(data, algorithm);
+        samples.push(performance.now() - start);
+      }
+
+      const timeMs = median(samples);
       state.benchmark.results[algorithm] = {
         timeMs,
         mbps: megabytes / (timeMs / 1000),
         digest
       };
-      state.benchmark.status = `${ALGORITHM_LABELS[algorithm]} finished in ${timeMs.toFixed(2)} ms.`;
+      state.benchmark.status = `${ALGORITHM_LABELS[algorithm]}: median ${timeMs.toFixed(2)} ms over ${BENCHMARK_TIMED_RUNS} runs.`;
     } catch (error) {
       state.benchmark.status = `${ALGORITHM_LABELS[algorithm]} is unavailable in this runtime: ${String(error)}`;
     }
@@ -729,8 +881,49 @@ async function runBenchmark(): Promise<void> {
 
   state.benchmark.running = false;
   state.benchmark.completed = true;
-  state.benchmark.status = 'Benchmark complete. Exact rankings depend on the browser and implementation path.';
+  state.benchmark.status = `Benchmark complete — median of ${BENCHMARK_TIMED_RUNS} timed runs (after ${BENCHMARK_WARMUP_RUNS} warmup). Exact rankings depend on the browser and implementation path.`;
   renderComparisonPanel();
+}
+
+async function runAvalancheDistribution(): Promise<void> {
+  if (state.avalanche.distributionRunning) {
+    return;
+  }
+
+  const algorithm = state.avalanche.algorithm;
+  const input = state.avalanche.input;
+  const inputBytes = utf8ToBytes(input);
+  if (inputBytes.length === 0) {
+    state.avalanche.distributionStatus = 'Type some input first — there are no bits to flip.';
+    void renderAvalanchePanel('none');
+    return;
+  }
+
+  state.avalanche.distributionRunning = true;
+  state.avalanche.distributionStatus = `Flipping each of ${inputBytes.length * 8} input bits for ${ALGORITHM_LABELS[algorithm]}…`;
+  await renderAvalanchePanel('none');
+
+  try {
+    // Yield once so the "measuring" state paints before the loop blocks.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    const distribution = await computeAvalancheDistribution(input, algorithm);
+    // If the input or algorithm changed while we were measuring, drop this
+    // now-stale result rather than painting it over the current input.
+    if (state.avalanche.input !== input || state.avalanche.algorithm !== algorithm) {
+      return;
+    }
+    state.avalanche.distribution = distribution;
+    state.avalanche.distributionStatus = `${ALGORITHM_LABELS[algorithm]}: mean ${distribution.mean.toFixed(1)} of ${distribution.totalBits} bits changed across ${distribution.trials} flips.`;
+    announce(
+      `${ALGORITHM_LABELS[algorithm]} avalanche distribution: mean ${distribution.mean.toFixed(1)} bits changed, standard deviation ${distribution.stdDev.toFixed(1)}, across ${distribution.trials} single-bit flips.`,
+      true
+    );
+  } catch (error) {
+    state.avalanche.distributionStatus = `Could not measure the distribution: ${String(error)}`;
+  } finally {
+    state.avalanche.distributionRunning = false;
+    await renderAvalanchePanel('none');
+  }
 }
 
 async function copyToClipboard(text: string, button: HTMLButtonElement): Promise<void> {
@@ -814,6 +1007,33 @@ function wireEvents(): void {
       return;
     }
 
+    if (target instanceof HTMLButtonElement && target.id === 'run-distribution') {
+      void runAvalancheDistribution();
+      return;
+    }
+
+    if (target instanceof HTMLButtonElement && target.id === 'sweep-secret-lengths') {
+      const bareMac = sha256PrefixMac(state.secret, state.attack.message);
+      state.attack.sweep = sweepSecretLengths(state.secret, bareMac, state.attack.message, state.attack.extension);
+      const hit = state.attack.sweep.find((entry) => entry.verified);
+      renderLengthExtensionPanel();
+      announce(
+        hit
+          ? `Secret-length sweep complete: guess ${hit.guess} bytes produced an accepted forgery.`
+          : 'Secret-length sweep complete: no guess between 1 and 32 bytes was accepted.',
+        true
+      );
+      return;
+    }
+
+    const sweepChip = target.closest<HTMLButtonElement>('[data-sweep-guess]');
+    if (sweepChip?.dataset.sweepGuess) {
+      state.attack.secretGuess = Number(sweepChip.dataset.sweepGuess);
+      renderLengthExtensionPanel();
+      writeStateToHash();
+      return;
+    }
+
     const bitButton = target.closest<HTMLButtonElement>('[data-output-bit]');
     if (bitButton) {
       const changed = bitButton.dataset.changed === 'true';
@@ -839,11 +1059,15 @@ function wireEvents(): void {
         state.avalanche.input = target.value;
         state.avalanche.bitPosition = 0;
         state.avalanche.flashDiff = true;
+        state.avalanche.distribution = null;
+        state.avalanche.distributionStatus = 'Input changed — rerun to refresh the distribution.';
         void renderAvalanchePanel();
         break;
       case 'avalanche-algorithm':
         state.avalanche.algorithm = target.value as HashAlgorithm;
         state.avalanche.flashDiff = true;
+        state.avalanche.distribution = null;
+        state.avalanche.distributionStatus = 'Algorithm changed — rerun to refresh the distribution.';
         void renderAvalanchePanel();
         break;
       case 'avalanche-bit':
@@ -851,12 +1075,22 @@ function wireEvents(): void {
         state.avalanche.flashDiff = true;
         void renderAvalanchePanel();
         break;
+      case 'attack-secret':
+        state.secret = target.value;
+        state.attack.sweep = null;
+        renderLengthExtensionPanel();
+        // The HMAC tab shares this secret; keep its (currently hidden) panel in
+        // sync so switching tabs never shows a MAC for a stale secret.
+        void renderHmacPanel();
+        break;
       case 'attack-message':
         state.attack.message = target.value;
+        state.attack.sweep = null;
         renderLengthExtensionPanel();
         break;
       case 'attack-extension':
         state.attack.extension = target.value;
+        state.attack.sweep = null;
         renderLengthExtensionPanel();
         break;
       case 'attack-secret-length':
@@ -878,6 +1112,8 @@ function wireEvents(): void {
       default:
         break;
     }
+
+    writeStateToHash();
   });
 
   // Keyboard arrow-key navigation for the tab bar (WAI-ARIA tabs pattern)
@@ -915,7 +1151,103 @@ function wireEvents(): void {
   });
 }
 
+const TAB_IDS = new Set<TabId>(TABS.map((tab) => tab.id));
+let hashWriteTimer = 0;
+
+/**
+ * Serialize the interesting bits of state into the URL hash so a specific
+ * walkthrough — a chosen tab, message, secret, and slider position — is
+ * shareable and reload-safe. Writes are debounced and use replaceState so
+ * typing does not flood the browser history.
+ */
+function writeStateToHash(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.clearTimeout(hashWriteTimer);
+  hashWriteTimer = window.setTimeout(() => {
+    const params = new URLSearchParams();
+    params.set('t', state.activeTab);
+    params.set('ai', state.avalanche.input);
+    params.set('aa', state.avalanche.algorithm);
+    params.set('ab', String(state.avalanche.bitPosition));
+    params.set('ac', state.avalanche.compareAll ? '1' : '0');
+    params.set('s', state.secret);
+    params.set('am', state.attack.message);
+    params.set('ae', state.attack.extension);
+    params.set('ag', String(state.attack.secretGuess));
+    params.set('hm', state.hmac.message);
+    params.set('he', state.hmac.extension);
+    params.set('hg', String(state.hmac.secretGuess));
+
+    const nextHash = `#${params.toString()}`;
+    if (nextHash !== window.location.hash) {
+      window.history.replaceState(null, '', nextHash);
+    }
+  }, 250);
+}
+
+function clampInt(value: string | null, min: number, max: number, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+}
+
+function readStateFromHash(): void {
+  if (typeof window === 'undefined' || !window.location.hash) {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.hash.slice(1));
+
+  const tab = params.get('t');
+  if (tab && TAB_IDS.has(tab as TabId)) {
+    state.activeTab = tab as TabId;
+  }
+
+  if (params.has('ai')) {
+    state.avalanche.input = params.get('ai') ?? state.avalanche.input;
+  }
+  const algorithm = params.get('aa');
+  if (algorithm && ALGORITHMS.includes(algorithm as HashAlgorithm)) {
+    state.avalanche.algorithm = algorithm as HashAlgorithm;
+  }
+  if (params.has('ab')) {
+    const maxBit = Math.max(utf8ToBytes(state.avalanche.input).length * 8 - 1, 0);
+    state.avalanche.bitPosition = clampInt(params.get('ab'), 0, maxBit, 0);
+  }
+  if (params.get('ac') === '1') {
+    state.avalanche.compareAll = true;
+  }
+
+  if (params.has('s')) {
+    state.secret = (params.get('s') ?? state.secret).slice(0, 32);
+  }
+  if (params.has('am')) {
+    state.attack.message = params.get('am') ?? state.attack.message;
+  }
+  if (params.has('ae')) {
+    state.attack.extension = params.get('ae') ?? state.attack.extension;
+  }
+  if (params.has('ag')) {
+    state.attack.secretGuess = clampInt(params.get('ag'), 1, 32, state.attack.secretGuess);
+  }
+  if (params.has('hm')) {
+    state.hmac.message = params.get('hm') ?? state.hmac.message;
+  }
+  if (params.has('he')) {
+    state.hmac.extension = params.get('he') ?? state.hmac.extension;
+  }
+  if (params.has('hg')) {
+    state.hmac.secretGuess = clampInt(params.get('hg'), 1, 32, state.hmac.secretGuess);
+  }
+}
+
 async function boot(): Promise<void> {
+  readStateFromHash();
   renderShell();
   wireEvents();
   setActiveTab(state.activeTab);

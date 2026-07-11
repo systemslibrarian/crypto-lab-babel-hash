@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeAvalanche } from '../crypto/avalanche';
+import { computeAvalanche, computeAvalancheDistribution } from '../crypto/avalanche';
 import type { HashAlgorithm } from '../crypto/hash';
 
 function seededRandom(seed: number): () => number {
@@ -32,5 +32,31 @@ describe('avalanche effect', () => {
       expect(averagePercent).toBeGreaterThan(40);
       expect(averagePercent).toBeLessThan(60);
     }
+  });
+});
+
+describe('avalanche distribution', () => {
+  it('produces one sample per input bit, centered near half the digest width', async () => {
+    const input = 'avalanche';
+    const distribution = await computeAvalancheDistribution(input, 'sha-256');
+
+    expect(distribution.trials).toBe(input.length * 8);
+    expect(distribution.samples).toHaveLength(distribution.trials);
+    expect(distribution.totalBits).toBe(256);
+    // Mean sits close to 128 (half of 256); allow generous slack for a small sample.
+    expect(distribution.mean).toBeGreaterThan(108);
+    expect(distribution.mean).toBeLessThan(148);
+    expect(distribution.min).toBeGreaterThanOrEqual(0);
+    expect(distribution.max).toBeLessThanOrEqual(256);
+    // Every trial is accounted for in exactly one histogram bucket.
+    const histogramTotal = distribution.histogram.reduce((sum, count) => sum + count, 0);
+    expect(histogramTotal).toBe(distribution.trials);
+  });
+
+  it('returns an empty, zeroed distribution for empty input', async () => {
+    const distribution = await computeAvalancheDistribution('', 'sha-256');
+    expect(distribution.trials).toBe(0);
+    expect(distribution.samples).toHaveLength(0);
+    expect(distribution.mean).toBe(0);
   });
 });

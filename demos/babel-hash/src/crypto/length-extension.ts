@@ -207,6 +207,38 @@ export function lengthExtensionForge(
   };
 }
 
+export interface SecretLengthSweepEntry {
+  guess: number;
+  forgeryMAC: string;
+  verified: boolean;
+}
+
+/**
+ * An attacker does not need to *know* the secret length — they simply try every
+ * plausible value and keep the one the server accepts. This sweeps guesses over
+ * [minLength, maxLength] and reports which land, making the point that keeping
+ * the secret's length private is not a defense.
+ */
+export function sweepSecretLengths(
+  secret: string,
+  originalMAC: string,
+  message: string,
+  extension: string,
+  minLength = 1,
+  maxLength = 32
+): SecretLengthSweepEntry[] {
+  const entries: SecretLengthSweepEntry[] = [];
+  for (let guess = minLength; guess <= maxLength; guess += 1) {
+    const attack = lengthExtensionForge(originalMAC, message, guess, extension);
+    entries.push({
+      guess,
+      forgeryMAC: attack.forgeryMAC,
+      verified: verifyLengthExtension(secret, attack)
+    });
+  }
+  return entries;
+}
+
 export function verifyLengthExtension(secret: string, attack: LengthExtensionAttack): boolean {
   const forgedMessageBytes = buildForgedMessageBytes(
     attack.originalMessage,

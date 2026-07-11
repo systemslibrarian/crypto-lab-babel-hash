@@ -16,7 +16,7 @@
 
 ## Live Demo
 
-[Live demo on GitHub Pages](https://systemslibrarian.github.io/crypto-lab-babel-hash/) runs fully in the browser. You can select the algorithm, edit message inputs, flip an exact input bit with the bit-position slider, and vary the guessed secret length for the forgery walkthrough. The interface includes tabs for Avalanche, Length extension, HMAC, and a comparison panel with a 1 MB in-browser benchmark control.
+[Live demo on GitHub Pages](https://systemslibrarian.github.io/crypto-lab-babel-hash/) runs fully in the browser. You can select the algorithm, edit message inputs, flip an exact input bit with the bit-position slider, and — with the *Run one flip per input bit* control — chart the full avalanche distribution to see that the ~50% figure is an average, not a coincidence. In the length-extension walkthrough you set the server's secret yourself, watch the forgery track it, and use *Sweep lengths 1–32* to show that keeping the secret's length private is no defense. The HMAC tab contrasts that failure and notes why MAC comparison must be constant-time. The interface includes tabs for Avalanche, Length extension, HMAC, and a comparison panel with a 1 MB in-browser benchmark (median of several timed runs after a warmup pass). The active tab and your inputs are encoded in the URL, so any particular walkthrough is shareable and reload-safe.
 
 ## How to Run Locally
 
