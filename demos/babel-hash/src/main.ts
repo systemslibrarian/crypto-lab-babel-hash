@@ -272,19 +272,32 @@ function renderShell(): void {
 
   app.innerHTML = `
     <div class="app-shell">
-      <header class="hero">
+      <div class="hero">
         <button class="theme-toggle" id="theme-toggle" aria-label="${toggleLabel}" title="${toggleLabel}">${toggleEmoji}</button>
         <div class="hero-badges">
           <span class="badge">Hash functions</span>
           <span class="badge">SHA-256 · SHA3-256 · BLAKE3</span>
           <span class="badge">Avalanche · Length Extension · HMAC</span>
         </div>
-        <h1>babel-hash</h1>
-        <p>
-          A browser lab for seeing how tiny input changes explode across digest bits, why bare prefix-MACs break,
-          and why <code>HMAC-SHA256</code> is the safe construction.
-        </p>
-      </header>
+        <div class="cl-hero">
+          <div class="cl-hero-main">
+            <h1 class="cl-hero-title">babel-hash</h1>
+            <p class="cl-hero-sub">SHA-256 · SHA3-256 · BLAKE3 · HMAC</p>
+            <p class="cl-hero-desc">
+              Flip one input bit to watch the avalanche effect scramble a digest, then run a length-extension
+              attack against bare <code>SHA-256(secret ∥ msg)</code> and see why <code>HMAC-SHA256</code> stops it.
+            </p>
+          </div>
+          <aside class="cl-hero-why" aria-label="Why it matters">
+            <span class="cl-hero-why-label">WHY IT MATTERS</span>
+            <p class="cl-hero-why-text">
+              Using a raw Merkle–Damgård hash as a MAC lets attackers forge valid tags without the secret — a
+              flaw that shipped in real APIs. Knowing which construction to reach for is the difference between an
+              authenticated message and a spoofable one.
+            </p>
+          </aside>
+        </div>
+      </div>
 
       <nav class="tabs" role="tablist" aria-label="Demo tabs">
         ${TABS.map(
