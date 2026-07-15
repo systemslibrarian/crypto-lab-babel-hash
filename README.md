@@ -83,6 +83,4 @@ See [`demos/babel-hash/README.md`](./demos/babel-hash/README.md) for the full wa
 
 ---
 
-*One of 120+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
-
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
