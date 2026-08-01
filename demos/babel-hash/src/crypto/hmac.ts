@@ -40,16 +40,27 @@ export async function hmacVerify(key: string, message: string, mac: string): Pro
   );
 }
 
+/**
+ * Runs the length-extension recipe against an HMAC tag and then *asks the real
+ * verifier* whether the result is accepted.
+ *
+ * The verdict is computed, never asserted: `verified` is the boolean returned by
+ * `hmacVerify` for the extended message, so it is earned the same way the
+ * server's answer would be. (It comes back false — that is the lesson — but the
+ * demo must never print a claim nobody computed.)
+ */
 export async function attemptLengthExtensionOnHMAC(
+  key: string,
   mac: string,
   message: string,
   secretLength: number,
   extension: string
 ): Promise<{ forgery: string; verified: boolean }> {
   const attack = lengthExtensionForge(mac, message, secretLength, extension);
+  const verified = await hmacVerify(key, `${message}${extension}`, attack.forgeryMAC);
 
   return {
     forgery: attack.forgeryMAC,
-    verified: false
+    verified
   };
 }

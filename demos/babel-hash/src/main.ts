@@ -6,7 +6,7 @@ import {
   flipBitBytes,
   type AvalancheDistribution
 } from './crypto/avalanche';
-import { attemptLengthExtensionOnHMAC, hmacSign, hmacVerify } from './crypto/hmac';
+import { attemptLengthExtensionOnHMAC, hmacSign } from './crypto/hmac';
 import {
   buildForgedMessageBytes,
   lengthExtensionForge,
@@ -651,12 +651,15 @@ async function renderHmacPanel(): Promise<void> {
   const secret = state.secret;
   const mac = await hmacSign(secret, state.hmac.message);
   const attempt = await attemptLengthExtensionOnHMAC(
+    secret,
     mac,
     state.hmac.message,
     state.hmac.secretGuess,
     state.hmac.extension
   );
-  const serverAccepted = await hmacVerify(secret, `${state.hmac.message}${state.hmac.extension}`, attempt.forgery);
+  // The verdict shown below is the one the attempt actually earned from
+  // hmacVerify — nothing here asserts the outcome in advance.
+  const serverAccepted = attempt.verified;
 
   if (renderToken !== hmacRenderToken) {
     return;
