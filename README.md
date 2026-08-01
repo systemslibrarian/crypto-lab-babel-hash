@@ -29,7 +29,8 @@ The demo computes SHA-256, SHA3-256, and BLAKE3 over your input and visualizes t
 
 - SHA-256 underpins TLS certificate signatures, Bitcoin proof-of-work and addresses, and Git object identifiers.
 - HMAC-SHA256 authenticates API requests, signed cookies/JWTs, and TLS records.
-- SHA3-256 / Keccak is standardized by NIST and used in the Ethereum ecosystem.
+- SHA3-256 is the NIST-standardized Keccak variant (FIPS 202, August 2015).
+- Ethereum's `keccak256` is *not* SHA3-256: it is the original, pre-standardization Keccak-256, which pads with the `0x01` suffix instead of FIPS 202's `0x06` domain separator. Same permutation, different digests for the same input.
 - BLAKE3 is used where high-throughput hashing matters, such as content-addressed storage and file-integrity tooling.
 
 ## How to Run Locally
