@@ -487,6 +487,11 @@ function renderLengthExtensionPanel(): void {
   }
 
   const secret = state.secret;
+  // The attack reconstructs SHA-256's padding over *bytes*, so the length that
+  // matters is the UTF-8 byte count, not the JavaScript string length (which
+  // counts UTF-16 code units). They differ the moment the secret is non-ASCII:
+  // "kingdöm42" is 9 characters but 10 bytes, and the sweep lands on 10.
+  const secretByteLength = utf8ToBytes(secret).length;
   const bareMac = sha256PrefixMac(secret, state.attack.message);
   const attack = lengthExtensionForge(
     bareMac,
@@ -512,8 +517,10 @@ function renderLengthExtensionPanel(): void {
           the amber one is the length whose forgery the server accepts. Click any chip to load that guess above.
           ${
             sweepHit
-              ? `The server accepted the guess <strong>${sweepHit.guess}</strong> — matching the real secret length of ${secret.length}.`
-              : `No guess in 1–32 landed, because this secret is ${secret.length} bytes long (outside the swept range).`
+              ? `The server accepted the guess <strong>${sweepHit.guess}</strong> — matching the real secret length of ${secretByteLength} bytes.`
+              : secretByteLength === 0
+                ? 'No guess in 1–32 landed: the secret is empty, so there is no length in the swept range to find.'
+                : `No guess in 1–32 landed: this secret is ${secretByteLength} UTF-8 bytes long, outside the swept range. Widen the sweep and it would land — hiding the length only buys the server a longer search.`
           }
         </p>
         <div class="sweep-grid" role="group" aria-label="Secret-length sweep results — select a guess to load it">
@@ -592,8 +599,8 @@ function renderLengthExtensionPanel(): void {
           <div class="card">
             <strong>Not known to attacker</strong>
             <ul>
-              <li><code>secret = ${'•'.repeat(Math.max(secret.length, 1))}</code></li>
-              <li>real secret length = ${secret.length}</li>
+              <li><code>secret = ${'•'.repeat(Math.max(secretByteLength, 1))}</code></li>
+              <li>real secret length = ${secretByteLength} bytes</li>
             </ul>
           </div>
         </div>
@@ -721,8 +728,11 @@ async function renderHmacPanel(): Promise<void> {
     <div class="callout warn small" style="margin-top: 1rem;">
       <strong>One more rule:</strong> compare MAC tags in <strong>constant time</strong>. A verifier that
       bails on the first mismatched byte leaks, through its timing, how much of a guessed tag was
-      correct — enough to forge one byte at a time. This demo uses <code>SubtleCrypto.verify</code>,
-      which performs the equality check in constant time for you.
+      correct — enough to forge one byte at a time. This panel never compares tags itself: it hands
+      the tag to <code>SubtleCrypto.verify</code> and reports whatever that returns. Browser engines
+      implement that comparison with a timing-safe routine, though note the Web Crypto specification
+      only defines the result, not the timing — the guarantee you can rely on is "do not hand-roll
+      <code>a === b</code> over tag strings," which is exactly what delegating to the platform avoids.
     </div>
   `;
 
