@@ -9,6 +9,7 @@
   --panel: #0e1825;
   --panel-strong: #132132;
   --border: #22354d;
+  --control-border: #607691;
   --accent: #6ecfff;
   --accent-soft: rgba(110, 207, 255, 0.18);
   --amber: #ffb84d;
@@ -40,6 +41,7 @@
   --panel: #ffffff;
   --panel-strong: #eeeeee;
   --border: #d0d0d0;
+  --control-border: #6d7885;
   --accent: #0066cc;
   --accent-soft: rgba(0, 102, 204, 0.12);
   --amber: #d97706;
@@ -276,7 +278,7 @@ select,
 input[type='text'] {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   background-color: var(--input-bg);
   color: var(--input-text);
   padding: 0.75rem;

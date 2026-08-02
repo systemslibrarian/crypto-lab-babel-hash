@@ -38,5 +38,7 @@ test('no WCAG A/AA violations in light theme', async ({ page }) => {
   await page.locator('#cl-theme-toggle').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await openAllDetails(page);
+  // Wait for the copy-button color transition to settle before axe samples it.
+  await expect(page.locator('.copy-btn').first()).toHaveCSS('color', 'rgb(26, 26, 26)');
   await scan(page);
 });
