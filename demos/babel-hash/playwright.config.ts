@@ -13,12 +13,12 @@ export default defineConfig({
   reporter: process.env.CI ? 'list' : [['list'], ['html', { open: 'never' }]],
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run preview -- --port 4221 --strictPort',
-    port: 4221,
+    command: 'npm run preview -- --port 4714 --strictPort',
+    port: 4714,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
   use: {
-    baseURL: 'http://localhost:4221/crypto-lab-babel-hash/',
+    baseURL: 'http://localhost:4714/crypto-lab-babel-hash/',
   },
 });
