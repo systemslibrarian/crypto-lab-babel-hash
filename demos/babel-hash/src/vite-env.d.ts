@@ -31,7 +31,11 @@ declare module 'vitest' {
       };
       resolves: {
         toBe: (expected: unknown) => Promise<void>;
+        toMatch: (expected: RegExp | string) => Promise<void>;
         toMatchObject: (expected: object) => Promise<void>;
+      };
+      rejects: {
+        toThrow: (expected?: unknown) => Promise<void>;
       };
     };
   };

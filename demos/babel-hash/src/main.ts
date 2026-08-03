@@ -656,14 +656,44 @@ async function renderHmacPanel(): Promise<void> {
   panel.innerHTML = '<div class="panel">Computing HMAC view…</div>';
 
   const secret = state.secret;
-  const mac = await hmacSign(secret, state.hmac.message);
-  const attempt = await attemptLengthExtensionOnHMAC(
-    secret,
-    mac,
-    state.hmac.message,
-    state.hmac.secretGuess,
-    state.hmac.extension
-  );
+  let mac: string;
+  let attempt: Awaited<ReturnType<typeof attemptLengthExtensionOnHMAC>>;
+
+  try {
+    mac = await hmacSign(secret, state.hmac.message);
+    attempt = await attemptLengthExtensionOnHMAC(
+      secret,
+      mac,
+      state.hmac.message,
+      state.hmac.secretGuess,
+      state.hmac.extension
+    );
+  } catch (error) {
+    // WebCrypto refuses a zero-length HMAC key, and the secret field can be
+    // cleared (or arrive empty from a shared "#s=" link). Without this branch
+    // the panel stayed on its "Computing HMAC view…" placeholder forever.
+    if (renderToken !== hmacRenderToken) {
+      return;
+    }
+
+    panel.innerHTML = `
+      <div class="panel">
+        <h2>HMAC-SHA256 closes the hole</h2>
+        <p class="failure">
+          No HMAC key: this runtime will not sign with an empty secret
+          (${escapeHtml(String(error))}).
+        </p>
+        <p class="muted">
+          HMAC's whole defense is the key mixed into both hashes, so there is nothing to show
+          without one. Type a server secret on the <strong>2. Length extension</strong> tab and
+          this panel recomputes.
+        </p>
+      </div>
+    `;
+    announce('HMAC panel unavailable: the server secret is empty, so there is no key to sign with.');
+    return;
+  }
+
   // The verdict shown below is the one the attempt actually earned from
   // hmacVerify — nothing here asserts the outcome in advance.
   const serverAccepted = attempt.verified;

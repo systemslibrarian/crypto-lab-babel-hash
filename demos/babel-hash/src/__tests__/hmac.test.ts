@@ -22,6 +22,20 @@ describe('hmac-sha256', () => {
     await expect(hmacVerify(key, `${message}${extension}`, attempt.forgery)).resolves.toBe(false);
   });
 
+  it('refuses to sign with an empty key rather than inventing one', async () => {
+    // This is the precondition renderHmacPanel's catch branch exists for. Web
+    // Crypto rejects a zero-length HMAC key, and the demo's secret field can be
+    // cleared (or arrive empty from a shared "#s=" link), so the panel has to
+    // handle a rejection here rather than await a promise that never settles.
+    // If a future runtime started accepting empty keys this test fails loudly,
+    // which is the signal that the branch has gone dead.
+    await expect(hmacSign('', 'amount=10&to=alice')).rejects.toThrow();
+    await expect(hmacVerify('', 'amount=10&to=alice', '00'.repeat(32))).rejects.toThrow();
+
+    // One byte of key is enough — the refusal is specifically about length zero.
+    await expect(hmacSign('k', 'amount=10&to=alice')).resolves.toMatch(/^[0-9a-f]{64}$/u);
+  });
+
   it('earns its verdict from hmacVerify rather than asserting it', async () => {
     const key = 'kingdom-key';
     const message = 'amount=10&to=alice';
