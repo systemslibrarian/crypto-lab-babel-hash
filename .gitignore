@@ -1,0 +1,10 @@
+# The lab itself lives in demos/babel-hash/ and has its own .gitignore, but that
+# one does not cover the repo root — so a root-level npm install or Playwright
+# run left node_modules/ and test-results/ showing as untracked forever.
+node_modules/
+dist/
+test-results/
+playwright-report/
+blob-report/
+.DS_Store
+*.local
