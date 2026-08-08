@@ -579,7 +579,12 @@ function renderLengthExtensionPanel(): void {
           </button>
         </div>
 
-        <div class="stat-row" aria-label="Server MAC and padding summary">
+        <!-- No aria-label here: a plain div has the generic role, on which
+             aria-label is PROHIBITED — browsers discard the name and it reaches
+             no screen reader at all. Nothing is lost: each chip below already
+             says what it holds in visible text, and the lab's other .stat-rows
+             carry no label either. -->
+        <div class="stat-row">
           <span class="stat-chip">Server MAC: <code>${bareMac}</code></span>
           <span class="stat-chip">Glue padding bytes: <strong>${attack.gluePadding.length / 2}</strong></span>
         </div>
@@ -798,6 +803,7 @@ function renderComparisonPanel(): void {
 
     <div class="panel" style="margin-top: 1rem;">
       <h2>Comparison table</h2>
+      <div class="table-wrap" role="region" tabindex="0" aria-label="Hash construction comparison">
       <table class="comparison-table">
         <thead>
           <tr>
@@ -816,6 +822,7 @@ function renderComparisonPanel(): void {
           <tr><td>Speed note</td><td>Solid baseline</td><td>Usually slower in software</td><td>Fastest of the three</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div class="panel" style="margin-top: 1rem;">
@@ -843,12 +850,14 @@ function renderComparisonPanel(): void {
           ${state.benchmark.running ? 'Benchmark running…' : 'Run benchmark'}
         </button>
       </div>
-      <table class="comparison-table" style="margin-top: 0.8rem;">
+      <div class="table-wrap" role="region" tabindex="0" aria-label="Benchmark results" style="margin-top: 0.8rem;">
+      <table class="comparison-table">
         <thead>
           <tr><th>Algorithm</th><th>Time</th><th>Throughput</th><th>Digest preview</th></tr>
         </thead>
-        <tbody>${benchmarkRows}</tbody>
+        <tbody id="benchmark-rows">${benchmarkRows}</tbody>
       </table>
+      </div>
     </div>
   `;
 }

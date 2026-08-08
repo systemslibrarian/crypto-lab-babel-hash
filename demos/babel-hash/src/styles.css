@@ -150,6 +150,10 @@ textarea {
 
 .hero {
   display: grid;
+  /* A bare `grid` track keeps an automatic minimum of min-content, so one wide
+     child sizes the column and the whole page scrolls sideways. `minmax(0, 1fr)`
+     lets the track shrink and hands the overflow back to the child. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   position: relative;
@@ -535,6 +539,17 @@ input[type='range'] {
   font-size: 0.92rem;
 }
 
+.table-wrap {
+  /* A focusable scroller needs a visible focus indicator of its own — it is a
+     tab stop with no other affordance. */
+  border-radius: 0.5rem;
+}
+
+.table-wrap:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .comparison-table {
   width: 100%;
   border-collapse: collapse;
@@ -597,6 +612,15 @@ pre {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
 }
 
+/* A 64-character hex digest is one unbreakable "word": it carries no wrap
+   opportunity, so a bare <code> holding the server MAC measured 615px wide and
+   pushed the document to 1337px at a 1280px viewport. `anywhere` (not
+   `break-word`) is required because only `anywhere` also reduces the element's
+   min-content contribution, which is what the grid track above sizes against. */
+code {
+  overflow-wrap: anywhere;
+}
+
 pre {
   white-space: pre-wrap;
   word-break: break-word;
@@ -622,12 +646,17 @@ pre {
     grid-template-columns: repeat(16, minmax(0, 1fr));
   }
 
+  /* `minmax(0, 1fr)`, not a bare `1fr`: the automatic minimum of a bare track
+     is min-content, so the widest child (a hex digest, a wide table) sizes the
+     column and the page scrolls sideways at exactly the width where it hurts
+     most. The desktop rules above already use the floor; this collapse dropped
+     it. */
   .grid-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .grid-3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .tabs {
@@ -654,10 +683,19 @@ pre {
     font-size: 0.85rem;
   }
 
-  .comparison-table {
-    display: block;
+  /* The SCROLLER is the wrapper, never the <table> itself. Making the table
+     `display: block` turns it into an unlabelled scrolling region with no
+     keyboard route (axe `scrollable-region-focusable`), and a role or tabindex
+     applied directly to a <table> would replace its table semantics and orphan
+     every row. `.table-wrap` carries the overflow, the region role and the
+     tabindex; the table keeps being a table. */
+  .table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .comparison-table {
+    min-width: 32rem;
   }
 }
 
