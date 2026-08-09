@@ -11,6 +11,9 @@
   --border: #22354d;
   --control-border: #607691;
   --accent: #6ecfff;
+  /* Bright cyan on a near-black canvas was never the problem; see the light
+     block for why this token exists at all. */
+  --accent-ink: #6ecfff;
   --accent-soft: rgba(110, 207, 255, 0.18);
   --amber: #ffb84d;
   --amber-soft: rgba(255, 184, 77, 0.25);
@@ -43,6 +46,13 @@
   --border: #d0d0d0;
   --control-border: #6d7885;
   --accent: #0066cc;
+  /* The hero aside fills itself with `color-mix(--accent 6%)` and then labels
+     itself in --accent — an ink and its own background drifting to the same
+     hue. On that wash it measures 4.47:1, three hundredths under the floor,
+     and only at phone width, where the aside goes full-bleed and the composite
+     shifts. --accent-ink is the same hue carried down: 6.02:1 there, 6.81:1 on
+     the plain page. Borders, focus rings and fills keep --accent. */
+  --accent-ink: #0053a8;
   --accent-soft: rgba(0, 102, 204, 0.12);
   --amber: #d97706;
   --amber-soft: rgba(217, 119, 6, 0.15);
@@ -175,7 +185,7 @@ textarea {
 .cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);letter-spacing:.01em;opacity:.85;}
 .cl-hero-desc{margin:.55rem 0 0;font-size:1rem;line-height:1.5;color:var(--muted);max-width:60ch;}
 .cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in oklab,var(--accent) 6%,transparent);}
-.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;color:var(--accent);}
+.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;color:var(--accent-ink);}
 .cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;}
 @media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}.cl-hero-main{flex-basis:auto;min-width:0;}}
 
