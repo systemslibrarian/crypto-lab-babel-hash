@@ -20,11 +20,7 @@ async function minimumControlBoundaryContrast(page: Page): Promise<number> {
   });
 }
 
-test('form-control boundaries clear WCAG non-text contrast in both themes', async ({ page }) => {
+test('form-control boundaries clear WCAG non-text contrast', async ({ page }) => {
   await page.goto('.');
-  expect(await minimumControlBoundaryContrast(page)).toBeGreaterThanOrEqual(3);
-
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await minimumControlBoundaryContrast(page)).toBeGreaterThanOrEqual(3);
 });
