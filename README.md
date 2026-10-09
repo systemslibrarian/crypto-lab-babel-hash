@@ -87,3 +87,17 @@ See [`demos/babel-hash/README.md`](./demos/babel-hash/README.md) for the full wa
 *Part of the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
+
+## Publishing a reviewed revision
+
+The existing `.github/workflows/pages.yml` publishes GitHub Pages after lint,
+type checking, unit tests, build and the full browser/claims/accessibility suite.
+From an authenticated GitHub CLI, `npm run deploy` in `demos/babel-hash` requests
+that workflow on the pushed, reviewed `main` branch. It does not upload local
+files. A successful request means the run was queued; inspect its gates, Pages
+deployment and live site before calling the revision published. The redundant
+`gh-pages` publisher and its vulnerable `braces` dependency chain were removed.
+
+Use Node 24 (at least 24.15) for the current jsdom runtime. CI installs the locked
+dependency graph with `npm ci`. TypeScript 7 remains deferred while the current
+TypeScript ESLint parser declares support only for TypeScript below 6.1.
