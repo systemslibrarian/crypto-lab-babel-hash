@@ -24,13 +24,13 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: demos/babel-hash/package-lock.json
 
       - name: Install dependencies
         working-directory: demos/babel-hash
-        run: npm install
+        run: npm ci
 
       - name: Lint
         working-directory: demos/babel-hash
