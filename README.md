@@ -109,3 +109,7 @@ included publish-request tests are explicit because TypeScript 7 no longer
 includes all installed ambient packages by default. `npm run test:tooling`
 checks both compiler identities, all 23 previously resolved lint scopes, and
 real compiler/lint rejection controls without relaxing existing checks.
+
+## Reduced-round research context
+
+The live demo links [2026/232](https://eprint.iacr.org/2026/232) and [2026/1120](https://eprint.iacr.org/2026/1120), distinguishes reported reduced-round results from standard full-round SHA-2, and identifies the September result as a preprint. The reported 36-step pair is not verified by this lab; an executable extension remains contingent on retrieving and independently checking its exact conventions.
