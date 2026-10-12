@@ -1,0 +1,99 @@
+{
+  "sourceSha": "0e7ce56ba97a6c73a70ffdfa9a55b3108071fdc2",
+  "sourceCapture": "Actual currentmain ESLint10.12.0/typescript-eslint8.71.0 effectiveconfig for every23trackedJS/TS path; compiler config preserves existing options and adds explicitNode ambient types.",
+  "compilerConfigSha256": "c433b4109b65e9e303939f57e4a0bb468a249c9d1a1a4e84b9a13ffa91326195",
+  "paths": [
+    {
+      "path": "e2e/a11y.spec.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "e2e/border.spec.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "e2e/claims.spec.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "e2e/contrast.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "e2e/gate.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "e2e/nontext-baseline.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "e2e/nontext.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "eslint.config.js",
+      "configSha256": "fd050d16c4ac7a4e19d6e1ca1ff8794b827561c4ec49331a5dd79233f9356cb8"
+    },
+    {
+      "path": "playwright.config.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    },
+    {
+      "path": "src/__tests__/avalanche.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/__tests__/boot.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/__tests__/hash.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/__tests__/hmac.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/__tests__/length-extension.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/__tests__/publish-request.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/__tests__/sha256-kat.test.ts",
+      "configSha256": "945e59efb973651f94bb748d170aba8432986eae734df00320422fb5b349d048"
+    },
+    {
+      "path": "src/crypto/avalanche.ts",
+      "configSha256": "34d249356a895e34a50cadd850635f4ab736667286f4367e5a51b2388042bbc6"
+    },
+    {
+      "path": "src/crypto/hash.ts",
+      "configSha256": "34d249356a895e34a50cadd850635f4ab736667286f4367e5a51b2388042bbc6"
+    },
+    {
+      "path": "src/crypto/hmac.ts",
+      "configSha256": "34d249356a895e34a50cadd850635f4ab736667286f4367e5a51b2388042bbc6"
+    },
+    {
+      "path": "src/crypto/length-extension.ts",
+      "configSha256": "34d249356a895e34a50cadd850635f4ab736667286f4367e5a51b2388042bbc6"
+    },
+    {
+      "path": "src/main.ts",
+      "configSha256": "34d249356a895e34a50cadd850635f4ab736667286f4367e5a51b2388042bbc6"
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "configSha256": "34d249356a895e34a50cadd850635f4ab736667286f4367e5a51b2388042bbc6"
+    },
+    {
+      "path": "vite.config.ts",
+      "configSha256": "d7f597d16acc1a4cb60d5790ce9a8b9f44daaf6fc68d620451819b7b5a76bd4f"
+    }
+  ]
+}
