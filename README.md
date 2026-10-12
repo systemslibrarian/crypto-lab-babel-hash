@@ -99,5 +99,13 @@ deployment and live site before calling the revision published. The redundant
 `gh-pages` publisher and its vulnerable `braces` dependency chain were removed.
 
 Use Node 24 (at least 24.15) for the current jsdom runtime. CI installs the locked
-dependency graph with `npm ci`. TypeScript 7 remains deferred while the current
-TypeScript ESLint parser declares support only for TypeScript below 6.1.
+dependency graph with `npm ci`. The locked native TypeScript 7 compiler runs
+`tsc` for the build and CI type check. ESLint imports the TypeScript 6 JavaScript API through Microsoft's
+[official side-by-side aliases](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-60):
+`@typescript/native` is native 7.0.2, and `typescript` is the compatibility
+wrapper 6.0.2 exposing the locked 6.0.3 API. `tsc6` is available for API-based
+tools; it is not the build compiler. The Node ambient types required by the
+included publish-request tests are explicit because TypeScript 7 no longer
+includes all installed ambient packages by default. `npm run test:tooling`
+checks both compiler identities, all 23 previously resolved lint scopes, and
+real compiler/lint rejection controls without relaxing existing checks.

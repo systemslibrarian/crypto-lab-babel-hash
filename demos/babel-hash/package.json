@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint .",
+    "lint": "npm run test:tooling && eslint .",
     "test": "vitest run",
     "test:a11y": "playwright test",
-    "deploy": "gh workflow run pages.yml --repo systemslibrarian/crypto-lab-babel-hash --ref main"
+    "deploy": "gh workflow run pages.yml --repo systemslibrarian/crypto-lab-babel-hash --ref main",
+    "test:tooling": "node --test tests/tooling.node.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0"
@@ -23,9 +24,10 @@
     "eslint": "^10.12.0",
     "globals": "^17.13.0",
     "jsdom": "^30.1.2",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "^8.71.0",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "@typescript/native": "npm:typescript@7.0.2"
   }
 }
