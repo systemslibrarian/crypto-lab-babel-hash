@@ -112,4 +112,6 @@ real compiler/lint rejection controls without relaxing existing checks.
 
 ## Reduced-round research context
 
-The live demo links [2026/232](https://eprint.iacr.org/2026/232) and [2026/1120](https://eprint.iacr.org/2026/1120), distinguishes reported reduced-round results from standard full-round SHA-2, and identifies the September result as a preprint. The reported 36-step pair is not verified by this lab; an executable extension remains contingent on retrieving and independently checking its exact conventions.
+The live demo links [2026/232](https://eprint.iacr.org/2026/232) and [2026/1120](https://eprint.iacr.org/2026/1120), distinguishes reported reduced-round results from standard full-round SHA-2, and identifies the September result as a preprint. This lab does not verify the pair itself; the linked Collision Vault exhibit now provides that execution under explicit conventions.
+
+The supplied 36-step SHA-256 Table 2 pair is now verified in [Collision Vault](https://systemslibrarian.github.io/crypto-lab-collision-vault/#sha2-pair-verifier), with exact IV/step/padding conventions, mutation controls and full SHA-256 contrast. This lab still computes its own full-round hashes and does not execute the paper attack.
