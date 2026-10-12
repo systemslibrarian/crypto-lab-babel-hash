@@ -234,7 +234,8 @@ textarea {
 }
 
 .tab-button {
-  border: 1px solid var(--border);
+  /* Visible boundaries also when the page gradient shifts with content height. */
+  border: 1px solid var(--tab-text);
   background-color: var(--tab-bg);
   color: var(--tab-text);
   border-radius: 0.8rem;
@@ -248,7 +249,7 @@ textarea {
 
 .tab-button.active {
   background-color: var(--accent-soft);
-  border-color: rgba(110, 207, 255, 0.5);
+  border-color: var(--tab-active-text);
   color: var(--tab-active-text);
   font-weight: 600;
 }
@@ -613,7 +614,7 @@ input[type='range'] {
   /* #1178b3 top stop keeps white text >=4.5:1 across the whole gradient
      (the previous #1892d5 was only 3.4:1 against #fff). */
   background: linear-gradient(180deg, #1178b3, #0f6d9f);
-  border-color: rgba(110, 207, 255, 0.5);
+  border-color: var(--tab-active-text);
   color: #ffffff;
 }
 
