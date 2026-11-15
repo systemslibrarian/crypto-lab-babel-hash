@@ -27,11 +27,13 @@ The demo computes SHA-256, SHA3-256, and BLAKE3 over your input and visualizes t
 
 ## Real-World Usage
 
-- SHA-256 underpins TLS certificate signatures and Bitcoin proof-of-work and addresses. Git is the near-miss: its object identifiers are still SHA-1 by default (hardened against SHAttered since Git 2.13), with SHA-256 available only as an opt-in, still-experimental repository format (`extensions.objectFormat = sha256`).
+- SHA-256 underpins TLS certificate signatures and Bitcoin proof-of-work and addresses. Git is the near-miss: its object identifiers are still SHA-1 by default (hardened against SHAttered since Git 2.13), with SHA-256 available as an opt-in repository format (`git init --object-format=sha256`, recorded as `extensions.objectFormat = sha256`). Git no longer calls it experimental — the [Git 2.42 release notes](https://github.com/git/git/blob/v2.42.0/Documentation/RelNotes/2.42.0.txt) (August 2023) "tone down the warning on SHA-256 repositories being an experimental curiosity" — but the current [`git init` documentation](https://git-scm.com/docs/git-init) still states: "At present, there is no interoperability between SHA-256 repositories and SHA-1 repositories."
 - HMAC-SHA256 authenticates API requests, signed cookies/JWTs, and TLS records.
 - SHA3-256 is the NIST-standardized Keccak variant (FIPS 202, August 2015).
 - Ethereum's `keccak256` is *not* SHA3-256: it is the original, pre-standardization Keccak-256, which pads with the `0x01` suffix instead of FIPS 202's `0x06` domain separator. Same permutation, different digests for the same input.
 - BLAKE3 is used where high-throughput hashing matters, such as content-addressed storage and file-integrity tooling.
+
+**Standards reviewed 15 November 2026:** the Git sentence above previously called the SHA-256 object format "still-experimental". Git 2.42 (21 August 2023) dropped that label while keeping the no-interoperability note, which the `git init` documentation (page last updated for Git 2.54.0) still carries; the [Git 2.51 release notes](https://github.com/git/git/blob/master/Documentation/RelNotes/2.51.0.adoc) record that "flipping the default hash function to SHA-256 at Git 3.0 boundary is planned."
 
 ## How to Run Locally
 
