@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-const npmCli = join(process.execPath, '..', '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
+const npmCli = process.env.npm_execpath;
 
 // Exercise the actual npm entry point at the GitHub boundary. The fixture
 // replaces gh before launching npm, so neither control can request a deploy.
@@ -16,7 +16,9 @@ function request(exitCode: number) {
   writeFileSync(gh, '#!/usr/bin/env node\nconsole.log(JSON.stringify(process.argv.slice(2)));\nprocess.exit(Number(process.env.PUBLISH_CONTROL_EXIT));\n');
   chmodSync(gh, 0o700);
   try {
-    return spawnSync(process.execPath, [npmCli, 'run', 'deploy', '--silent'], {
+    const command = npmCli ? process.execPath : 'npm';
+    const args = npmCli ? [npmCli, 'run', 'deploy', '--silent'] : ['run', 'deploy', '--silent'];
+    return spawnSync(command, args, {
       cwd: root,
       env: { ...process.env, PATH: dir + delimiter + process.env.PATH, GH_TOKEN: '', PUBLISH_CONTROL_EXIT: String(exitCode) },
       encoding: 'utf8',
