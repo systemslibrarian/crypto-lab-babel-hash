@@ -16,12 +16,12 @@ export default defineConfig({
     // Build before serving. `preview` only serves whatever is already in dist/,
     // so a failed build would leave the last good bundle on disk and the suite
     // would pass green against source that no longer compiles.
-    command: 'npm run build && npm run preview -- --port 4714 --strictPort',
-    port: 4714,
+    command: 'npm run build && npm run preview -- --port 4258 --strictPort',
+    port: 4258,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
   use: {
-    baseURL: 'http://localhost:4714/crypto-lab-babel-hash/',
+    baseURL: 'http://localhost:4258/crypto-lab-babel-hash/',
   },
 });
